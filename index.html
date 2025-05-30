@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IPTV Web-App</title>
+  <title>IPTV Web-App mit HLS.js</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -68,10 +68,11 @@
       display: block;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-  <h1>IPTV Web-App</h1>
+  <h1>IPTV Web-App mit HLS.js</h1>
 
   <label for="m3uurl">M3U Playlist URL:</label>
   <input type="text" id="m3uurl" placeholder="https://example.com/playlist.m3u" />
@@ -105,6 +106,7 @@
   const webframe = document.getElementById('webframe');
 
   let channels = [];
+  let hls;
 
   loadBtn.addEventListener('click', () => {
     const url = m3uurlInput.value.trim();
@@ -120,8 +122,7 @@
       .then(data => {
         channels = parseM3U(data);
         showChannels();
-        player.pause();
-        player.src = '';
+        stopPlayer();
         webframe.style.display = 'none';
       })
       .catch(err => alert(err.message));
@@ -162,8 +163,35 @@
   function playChannel(url) {
     webframe.style.display = 'none';
     player.style.display = 'block';
-    player.src = url;
-    player.play();
+
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+
+    if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(player);
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        player.play();
+      });
+    } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari native HLS support
+      player.src = url;
+      player.play();
+    } else {
+      alert('Dein Browser unterstützt HLS nicht.');
+    }
+  }
+
+  function stopPlayer() {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    player.pause();
+    player.src = '';
   }
 
   openWeb1Btn.addEventListener('click', () => {
@@ -179,7 +207,7 @@
       alert('Bitte gib eine Webseite-URL ein!');
       return;
     }
-    player.pause();
+    stopPlayer();
     player.style.display = 'none';
     webframe.style.display = 'block';
     webframe.src = url;
